@@ -21,7 +21,7 @@ Nest aims to be the go-to solution for code and script generation, with a focus 
 `Nest.CSharp` – Generate C# code effortlessly
 
 - Nuget: https://www.nuget.org/packages/Nest.CSharp
-- GitHub: https://www.nuget.org/packages/Nest.CSharp
+- GitHub: https://github.com/h-shahzaib/Nest/tree/master/Nest.CSharp
 
 **Coming Soon:**
 
