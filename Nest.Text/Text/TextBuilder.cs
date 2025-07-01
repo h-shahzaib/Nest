@@ -3,60 +3,66 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Nest.CSharp
+namespace Nest.Text
 {
-    public class CSharpBuilder
+    internal class TextBuilder : IBuilder
     {
         private readonly List<Token> m_Tokens = [];
 
-        public Options Options
+        public IOptions Options => InternalOptions;
+        public IReadOnlyList<IToken> Tokens => m_Tokens.AsReadOnly();
+        public bool IsRootBuilder { get; set; } = true;
+
+        public Options InternalOptions
         {
             get
             {
-                if (m_Options == null)
-                    Options = Options.Default;
-                return m_Options!;
+                if (m_InternalOptions == null)
+                    InternalOptions = Text.Options.Default;
+                return m_InternalOptions!;
             }
-            set => m_Options = new Options(value);
+            set => m_InternalOptions = new Options(value);
         }
-        private Options? m_Options;
+        private Options? m_InternalOptions;
 
-        internal bool IsRootBuilder { get; set; } = true;
-
-        public void L(params string[] lines)
+        public IBuilder L(params string[] lines)
         {
+            Token token;
+
             if (lines.Length == 0)
-                m_Tokens.Add(new LineToken(Options));
-            else if ((lines.Length == 1 && lines[0].Contains(Environment.NewLine)) || lines.Length > 1)
-                m_Tokens.Add(new LinesToken(Options, lines));
+                token = new LineToken(InternalOptions);
+            else if ((lines.Length == 1 && lines.Any(i => i.Contains(Environment.NewLine))) || lines.Length > 1)
+                token = new LinesToken(InternalOptions, lines);
             else
-                m_Tokens.Add(new LineToken(Options, lines[0]));
+                token = new LineToken(InternalOptions, lines[0]);
+
+            m_Tokens.Add(token);
+
+            return this;
         }
 
-        public BlockToken B(string header, Action<CSharpBuilder> builder_act)
+        public IBuilder B(string header, Action<IBuilder> builder_act)
         {
-            var builder = new CSharpBuilder();
-            builder.Options = Options;
+            var builder = new TextBuilder();
+            builder.InternalOptions = InternalOptions;
             builder.IsRootBuilder = false;
             builder_act.Invoke(builder);
 
-            var token = new BlockToken(Options, header, builder);
-            token.Blocks.Add(token);
-            m_Tokens.Add(token);
-            return token;
+            m_Tokens.Add(new BlockToken(InternalOptions, header, builder));
+
+            return this;
         }
 
-        public BlockToken B(Action<CSharpBuilder> builder_act)
+        public IBuilder B(Action<IBuilder> builder_act)
         {
-            var builder = new CSharpBuilder();
-            builder.Options = Options;
+            var builder = new TextBuilder();
+            builder.InternalOptions = InternalOptions;
             builder.IsRootBuilder = false;
             builder_act.Invoke(builder);
 
-            var token = new BlockToken(Options, null, builder);
-            token.Blocks.Add(token);
-            m_Tokens.Add(token);
-            return token;
+            m_Tokens.Add(new BlockToken(InternalOptions, null, builder));
+
+            return this;
         }
 
         public override string ToString()

@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Nest.CSharp\Nest.CSharp.csproj" />
+    <ProjectReference Include="..\Nest.Text\Nest.Text.csproj" />
   </ItemGroup>
 
 </Project>

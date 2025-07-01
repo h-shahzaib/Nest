@@ -1,4 +1,5 @@
 ﻿using Nest.CSharp;
+using Nest.Text;
 
 // dotnet build -c Release && dotnet pack -c Release
 
@@ -8,7 +9,7 @@ namespace Nest.Demo
     {
         static void Main()
         {
-            var _ = new CSharpBuilder();
+            var _ = new TextBuilder();
 
             _.L("using System.Text;");
 
