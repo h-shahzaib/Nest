@@ -6,16 +6,17 @@ using System.Threading.Tasks;
 
 namespace Nest.Text
 {
-    internal abstract class Token : IToken, IBuilder
+    internal abstract class Token : IBuilder
     {
         public IOptions Options { get; }
 
-        protected Token(Options options)
+        public Token(Options options)
         {
             Options = new Options(options);
+            Tokens.Add(this);
         }
 
-        protected string ApplyReplacements(string str)
+        public string ApplyReplacements(string str)
         {
             if (string.IsNullOrWhiteSpace(str))
                 return str;
@@ -30,8 +31,7 @@ namespace Nest.Text
             return output;
         }
 
-        internal List<IToken> InternalTokens { get; } = [];
-        public IReadOnlyList<IToken> Tokens => InternalTokens.AsReadOnly();
+        public List<Token> Tokens { get; } = [];
 
         public IBuilder L(params string[] lines)
         {

@@ -6,8 +6,8 @@ namespace Nest.Text
 {
     internal class BlockToken : Token
     {
-        internal string? Header { get; }
-        internal TextBuilder Builder { get; }
+        public string? Header { get; }
+        public TextBuilder Builder { get; }
 
         public BlockToken(Options options, string? header, TextBuilder builder) : base(options)
         {

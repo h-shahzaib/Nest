@@ -5,64 +5,66 @@ using System.Text;
 
 namespace Nest.Text
 {
-    internal class TextBuilder : IBuilder
+    public class TextBuilder : IBuilder
     {
         private readonly List<Token> m_Tokens = [];
 
-        public IOptions Options => InternalOptions;
-        public IReadOnlyList<IToken> Tokens => m_Tokens.AsReadOnly();
-        public bool IsRootBuilder { get; set; } = true;
-
-        public Options InternalOptions
+        public IOptions Options
         {
             get
             {
-                if (m_InternalOptions == null)
-                    InternalOptions = Text.Options.Default;
-                return m_InternalOptions!;
+                if (m_Options == null)
+                    Options = Text.Options.Default;
+                return m_Options!;
             }
-            set => m_InternalOptions = new Options(value);
+            set => m_Options = new Options((value as Options)!);
         }
-        private Options? m_InternalOptions;
+        private Options? m_Options;
+
+        public bool IsRootBuilder { get; set; } = true;
 
         public IBuilder L(params string[] lines)
         {
-            Token token;
+            var options = (Options as Options)!;
 
+            Token token;
             if (lines.Length == 0)
-                token = new LineToken(InternalOptions);
+                token = new LineToken(options);
             else if ((lines.Length == 1 && lines.Any(i => i.Contains(Environment.NewLine))) || lines.Length > 1)
-                token = new LinesToken(InternalOptions, lines);
+                token = new LinesToken(options, lines);
             else
-                token = new LineToken(InternalOptions, lines[0]);
+                token = new LineToken(options, lines[0]);
 
             m_Tokens.Add(token);
-
-            return this;
+            return token;
         }
 
         public IBuilder B(string header, Action<IBuilder> builder_act)
         {
+            var options = (Options as Options)!;
+
             var builder = new TextBuilder();
-            builder.InternalOptions = InternalOptions;
+            builder.Options = Options;
             builder.IsRootBuilder = false;
             builder_act.Invoke(builder);
 
-            m_Tokens.Add(new BlockToken(InternalOptions, header, builder));
-
-            return this;
+            var token = new BlockToken(options, header, builder);
+            m_Tokens.Add(token);
+            return token;
         }
 
         public IBuilder B(Action<IBuilder> builder_act)
         {
+            var options = (Options as Options)!;
+
             var builder = new TextBuilder();
-            builder.InternalOptions = InternalOptions;
+            builder.Options = Options;
             builder.IsRootBuilder = false;
             builder_act.Invoke(builder);
 
-            m_Tokens.Add(new BlockToken(InternalOptions, null, builder));
-
-            return this;
+            var token = new BlockToken(options, null, builder);
+            m_Tokens.Add(token);
+            return token;
         }
 
         public override string ToString()
@@ -84,37 +86,41 @@ namespace Nest.Text
                     string_builder.AppendLine();
                 string_builder.Append(tabs + token.ToString().Replace(new_line, $"{new_line}{tabs}"));
 
-                var next_token_not_empty =
-                    next_token is LineToken next_line_token
-                        && !string.IsNullOrWhiteSpace(next_line_token.Line) ||
-                    next_token is LinesToken next_lines_token
-                        && next_lines_token.Lines.Length > 0
-                        && !string.IsNullOrWhiteSpace(next_lines_token.Lines[0]);
-
-                if (token is BlockToken)
-                {
-                    if (i != m_Tokens.Count - 1 && (next_token is BlockToken || next_token_not_empty))
-                        string_builder.AppendLine();
-                }
-                else if (token is LineToken line_token)
-                {
-                    if (i != m_Tokens.Count - 1 && !string.IsNullOrWhiteSpace(line_token.Line) && next_token is not LineToken && (next_token is BlockToken || next_token_not_empty))
-                        string_builder.AppendLine();
-                }
-                else if (token is LinesToken lines_token)
-                {
-                    if (i != m_Tokens.Count - 1 && lines_token.Lines.Length > 0 && !string.IsNullOrWhiteSpace(lines_token.Lines[lines_token.Lines.Length - 1]) && (next_token is BlockToken || next_token_not_empty))
-                        string_builder.AppendLine();
-                }
-                else
-                {
-                    throw new InvalidOperationException(
-                        $"Unsupported token type '{token.GetType().Name}' encountered."
-                    );
-                }
+                var should_add_line_break = ShouldAddLineBreak(i, token, next_token);
+                if (should_add_line_break)
+                    string_builder.AppendLine();
             }
 
             return string_builder.ToString();
+        }
+
+        private bool ShouldAddLineBreak(int index, Token current_token, Token next_token)
+        {
+            if (index == m_Tokens.Count - 1)
+                return false;
+
+            if (next_token is BlockToken)
+                return true;
+
+            bool current_has_content = TokenHasContent(current_token);
+            bool next_has_content = TokenHasContent(next_token);
+
+            return current_has_content && next_has_content && next_token is not LineToken;
+        }
+
+        private bool TokenHasContent(Token token)
+        {
+            return token switch
+            {
+                BlockToken => true,
+                
+                LineToken line_token => !string.IsNullOrWhiteSpace(line_token.Line),
+                
+                LinesToken lines_token => lines_token.Lines.Length > 0 
+                    && !string.IsNullOrWhiteSpace(lines_token.Lines[lines_token.Lines.Length - 1]),
+
+                _ => false
+            };
         }
     }
 }
