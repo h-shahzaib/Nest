@@ -12,9 +12,9 @@
     <Version>1.0.0</Version>
     <Authors>Shahzaib Hassan</Authors>
     <Company>h-shahzaib</Company>
-    <PackageId>Nest.CSharp</PackageId>
+    <PackageId>Nest.Test</PackageId>
     <Description>Nest is a C# library for generating structured text through a fluent API. Focus on minimal, zero-dependency, and highly composable code generation.</Description>
-    <PackageTags>nest csharp source code gen generator fluent dotnet</PackageTags>
+    <PackageTags>nest test yaml csharp json xml html css source code gen generator fluent dotnet</PackageTags>
     <RepositoryUrl>https://github.com/h-shahzaib/Nest</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>

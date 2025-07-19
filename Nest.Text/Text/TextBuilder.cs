@@ -1,120 +1,175 @@
-﻿using System;
+﻿using Nest.Text.Tokens;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace Nest.Text
 {
-    internal class TextBuilder : IBuilder
+    public class TextBuilder
     {
-        private readonly List<Token> m_Tokens = [];
+        private readonly TextBuilderContext m_Context;
 
-        public IOptions Options => InternalOptions;
-        public IReadOnlyList<IToken> Tokens => m_Tokens.AsReadOnly();
-        public bool IsRootBuilder { get; set; } = true;
+        public TextBuilder() => m_Context = new();
+        public TextBuilder(TextBuilderOptions options) => m_Context = new(options);
+        internal TextBuilder(TextBuilderContext context) => m_Context = context;
 
-        public Options InternalOptions
-        {
-            get
-            {
-                if (m_InternalOptions == null)
-                    InternalOptions = Text.Options.Default;
-                return m_InternalOptions!;
-            }
-            set => m_InternalOptions = new Options(value);
-        }
-        private Options? m_InternalOptions;
+        internal Token? ParentToken { get; private set; } = null;
+        internal bool IsRootBuilder { get; private set; } = true;
 
-        public IBuilder L(params string[] lines)
+        public TextBuilderOptions Options => m_Context.Options;
+
+        public TextBuilder L(string line = "")
         {
             Token token;
 
-            if (lines.Length == 0)
-                token = new LineToken(InternalOptions);
-            else if ((lines.Length == 1 && lines.Any(i => i.Contains(Environment.NewLine))) || lines.Length > 1)
-                token = new LinesToken(InternalOptions, lines);
+            if (line.Contains(Environment.NewLine))
+                token = new LinesToken(m_Context.Options, line);
             else
-                token = new LineToken(InternalOptions, lines[0]);
+                token = new LineToken(m_Context.Options, line);
 
-            m_Tokens.Add(token);
+            m_Context.Tokens.Add(token);
+
+            return GetChainBuilder(token, m_Context);
+        }
+
+        public TextBuilder L(params string[] lines)
+        {
+            var token = new LinesToken(m_Context.Options, string.Join(Environment.NewLine, lines));
+
+            m_Context.Tokens.Add(token);
+
+            return GetChainBuilder(token, m_Context);
+        }
+
+        public TextBuilder B(Action<TextBuilder> builder_act)
+        {
+            var builder = new TextBuilder(m_Context.Options);
+            builder_act.Invoke(builder);
+            builder.IsRootBuilder = false;
+
+            if (builder.m_Context.Tokens.Count > 0)
+            {
+                var token = new BlockToken(m_Context.Options, builder);
+                m_Context.Tokens.Add(token);
+                return GetChainBuilder(token, m_Context);
+            }
 
             return this;
         }
 
-        public IBuilder B(string header, Action<IBuilder> builder_act)
+        private TextBuilder GetChainBuilder(Token token, TextBuilderContext context)
         {
-            var builder = new TextBuilder();
-            builder.InternalOptions = InternalOptions;
-            builder.IsRootBuilder = false;
-            builder_act.Invoke(builder);
-
-            m_Tokens.Add(new BlockToken(InternalOptions, header, builder));
-
-            return this;
-        }
-
-        public IBuilder B(Action<IBuilder> builder_act)
-        {
-            var builder = new TextBuilder();
-            builder.InternalOptions = InternalOptions;
-            builder.IsRootBuilder = false;
-            builder_act.Invoke(builder);
-
-            m_Tokens.Add(new BlockToken(InternalOptions, null, builder));
-
-            return this;
+            if (ParentToken != null)
+            {
+                token.ParentToken = ParentToken;
+                ParentToken = token;
+                return this;
+            }
+            else
+            {
+                var chain_builder = new TextBuilder(context);
+                chain_builder.ParentToken = token;
+                chain_builder.IsRootBuilder = false;
+                return chain_builder;
+            }
         }
 
         public override string ToString()
         {
+            var string_builder = new StringBuilder();
+            BuildText(string_builder, this, 0);
+            return string_builder.ToString();
+        }
+
+        private static void BuildText(StringBuilder @string, TextBuilder builder, int spaces_count)
+        {
             var new_line = Environment.NewLine;
 
-            var string_builder = new StringBuilder();
-
-            for (int i = 0; i < m_Tokens.Count; i++)
+            for (int i = 0; i < builder.m_Context.Tokens.Count; i++)
             {
-                var token = m_Tokens[i];
-                var next_token = m_Tokens.ElementAtOrDefault(i + 1);
+                var token = builder.m_Context.Tokens[i];
 
-                var tabs = string.Empty;
-                if (!IsRootBuilder && token.Options.NumberOfSpacesInOneTab > 0)
-                    tabs = new string(' ', token.Options.NumberOfSpacesInOneTab);
+                var spaces = new string(' ', spaces_count);
+                if (!builder.IsRootBuilder && token.Options.IndentSize > 0)
+                    spaces = new string(' ', spaces_count + token.Options.IndentSize);
 
                 if (i != 0)
-                    string_builder.AppendLine();
-                string_builder.Append(tabs + token.ToString().Replace(new_line, $"{new_line}{tabs}"));
+                    @string.AppendLine();
 
-                var next_token_not_empty =
-                    next_token is LineToken next_line_token
-                        && !string.IsNullOrWhiteSpace(next_line_token.Line) ||
-                    next_token is LinesToken next_lines_token
-                        && next_lines_token.Lines.Length > 0
-                        && !string.IsNullOrWhiteSpace(next_lines_token.Lines[0]);
-
-                if (token is BlockToken)
+                if (token is LineToken line_token)
                 {
-                    if (i != m_Tokens.Count - 1 && (next_token is BlockToken || next_token_not_empty))
-                        string_builder.AppendLine();
-                }
-                else if (token is LineToken line_token)
-                {
-                    if (i != m_Tokens.Count - 1 && !string.IsNullOrWhiteSpace(line_token.Line) && next_token is not LineToken && (next_token is BlockToken || next_token_not_empty))
-                        string_builder.AppendLine();
+                    @string.Append(spaces + ApplyReplacements(token.Options, line_token.Line));
                 }
                 else if (token is LinesToken lines_token)
                 {
-                    if (i != m_Tokens.Count - 1 && lines_token.Lines.Length > 0 && !string.IsNullOrWhiteSpace(lines_token.Lines[lines_token.Lines.Length - 1]) && (next_token is BlockToken || next_token_not_empty))
-                        string_builder.AppendLine();
+                    @string.Append(string.Join(new_line, lines_token.Lines.Split([Environment.NewLine], StringSplitOptions.None).Select(i => spaces + ApplyReplacements(token.Options, i))));
                 }
-                else
+                else if (token is BlockToken block_token)
                 {
-                    throw new InvalidOperationException(
-                        $"Unsupported token type '{token.GetType().Name}' encountered."
-                    );
-                }
-            }
+                    if (block_token.Builder.Options.BlockStyle == BlockStyle.Braces)
+                        @string.AppendLine(spaces + '{');
 
-            return string_builder.ToString();
+                    BuildText(@string, block_token.Builder, spaces.Length);
+
+                    if (block_token.Builder.Options.BlockStyle == BlockStyle.Braces)
+                        @string.Append(new_line + spaces + '}');
+                }
+
+                if (ShouldAddLineBreak(builder.m_Context.Tokens, i, token))
+                    @string.AppendLine();
+            }
+        }
+
+        private static bool ShouldAddLineBreak(List<Token> tokens, int index, Token first_token)
+        {
+            if (TokenIsEmpty(first_token))
+                return false;
+
+            var second_token = index + 1 < tokens.Count ? tokens[index + 1] : null;
+            if (second_token is null)
+                return false;
+
+            if (TokenIsEmpty(second_token))
+                return false;
+
+            if ((first_token is LinesToken || first_token is BlockToken) && first_token.ParentToken is null)
+                return true;
+
+            if ((second_token is LinesToken || second_token is BlockToken) && second_token.ParentToken is null)
+                return true;
+
+            var third_token = index + 2 < tokens.Count ? tokens[index + 2] : null;
+            if (second_token.ParentToken is null && third_token is not null && third_token.ParentToken is not null && ReferenceEquals(third_token.ParentToken, second_token))
+                return true;
+
+            if (first_token.ParentToken is not null && second_token.ParentToken is null)
+                return true;
+
+            return false;
+        }
+
+        private static bool TokenIsEmpty(Token token)
+        {
+            return token switch
+            {
+                LineToken line_token => string.IsNullOrWhiteSpace(line_token.Line),
+                LinesToken lines_token => string.IsNullOrWhiteSpace(lines_token.Lines),
+                _ => false
+            };
+        }
+
+        private static string ApplyReplacements(TextBuilderOptions options, string str)
+        {
+            if (string.IsNullOrWhiteSpace(str))
+                return str;
+
+            var output = str;
+            foreach (var replacement in options.GetCharReplacements())
+                output = output.Replace(replacement.Key, replacement.Value);
+
+            return output;
         }
     }
 }

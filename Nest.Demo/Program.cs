@@ -1,5 +1,4 @@
-﻿using Nest.CSharp;
-using Nest.Text;
+﻿using Nest.Text;
 
 // dotnet build -c Release && dotnet pack -c Release
 
@@ -9,30 +8,23 @@ namespace Nest.Demo
     {
         static void Main()
         {
-            var _ = new TextBuilder();
+            var a = new TextBuilder();
+            a.Options.BlockStyle = BlockStyle.IndentOnly;
 
-            _.L("using System.Text;");
-
-            _.B("namespace MyProgram", _ =>
+            a.L("Library:").B(b =>
             {
-                _.B("public class MyProgram", _ =>
+                b.L("name: `Nest`");
+                b.L("uses: `Structured Text O`");
+
+                b.L("features:").B(c =>
                 {
-                    _.B("public static void Main(string[] args)", _ =>
-                    {
-                        _.B("if (count > 6)", _ =>
-                        {
-                            _.L("Console.WriteLine(`Hello World!`);");
-                            _.L("Console.WriteLine(`Hello World!`);");
-                        })
-                        .B("else", _ =>
-                        {
-                            _.L("Console.WriteLine(`Hello World!`);");
-                        });
-                    });
+                    c.L("- Automated Indentation");
+                    c.L("- Easy To Use");
+                    c.L("- Zero Dependency");
                 });
             });
 
-            Console.WriteLine(_.ToString());
+            Console.WriteLine(a.ToString());
         }
     }
 }

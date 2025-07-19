@@ -1,74 +1,90 @@
-# Nest.CSharp
+# **Nest.Text**
 
- **Nest.CSharp** is a fluent, lightweight, zero-dependency source code generator preconfigured for C#. It helps you generate structured C# source code through a clean, builder-style API — so you can focus on _what_ to generate, not _how_ to format it.
+**Nest.Text** is a zero-dependency, fluent text generation library that helps you build structured content — from **C#**, **Python**, and **YAML** to **HTML**, **XML**, and more. It lets you describe what to generate — Nest takes care of how it's formatted.
 
 ---
 
 ## 📦 Installation
 
-Install via the .NET CLI:
-
-```
-dotnet add package Nest.CSharp
+```bash
+dotnet add package Nest.Text
 ```
 
 ---
 
-## 🚀 Overview
+## 🚀 What Is It?
 
-Built on **.NET Standard 2.0**, Nest.CSharp works across **all .NET versions** with **no external dependencies**.
-It handles indentation, structure, formatting, and character escaping — all out of the box.
+Nest.Text provides a builder-style API to generate code, markup, or any structured text using:
+
+* `.L(...)` – Write one or more lines
+* `.B(...)` – Begin a block with nested content
+
+You **chain** these calls to preserve layout — Nest adds or avoids line breaks based on chaining and structure awareness.
 
 ---
 
-## 🧪 Example
+## 🔁 Line Break Behavior
 
-Let's imagine we want to generate the following C# code:
+| Usage                          | Result                                                     |
+| ------------------------------ | ---------------------------------------------------------- |
+| `_.L("one");`<br>`_.L("two");` | ❌ No Line break between
+| `_.L("one").L("two");`         | ❌ No line break between                                    |
+|                                | ✅ Line Break before or after chain
+| `_.L("line1", "line2");`       | ✅ Line break before or after block, **not between lines** |
+| `_.L(new[] { "x", "y" });`     | ✅ Same as above — before & after only                      |
+
+> 🔥 **No line breaks between chained calls**, but Nest adds breaks around separate statements and multi-line entries automatically.
+
+---
+
+## ⚙️ Options
 
 ```csharp
-using System.Text;
-
-namespace MyProgram
-{
-    public class MyProgram
-    {
-        public static void Main(string[] args)
-        {
-            if (count > 6)
-            {
-                Console.WriteLine("Hello World!");
-                Console.WriteLine("Hello World!");
-            }
-            else
-            {
-                Console.WriteLine("Hello World!");
-            }
-        }
-    }
-}
+_.Options.BlockStyle = BlockStyle.Braces; // or IndentOnly
+_.Options.IndentSize = 4;                 // spaces per indent level
 ```
 
-Here's how we'll do it:
+---
+
+## 🔄 Smart Quote Replacement
+
+You can use backticks (\`) instead of escaped quotes in your strings:
 
 ```csharp
-using Nest.CSharp;
+_.L("Console.WriteLine(`Hello World!`);"); 
+// Outputs: Console.WriteLine("Hello World!");
+```
 
-var _ = new CSharpBuilder();
+To customize or disable:
+
+```csharp
+_.Options.RegisterCharReplacement('`', '"');
+_.Options.RemoveCharReplacement('`');
+```
+
+---
+
+## 🧪 C# Example (Braces Block Style with Chaining)
+
+```csharp
+var _ = new TextBuilder();
+_.Options.BlockStyle = BlockStyle.Braces;
+_.Options.IndentSize = 4;
 
 _.L("using System.Text;");
 
-_.B("namespace MyProgram", _ =>
+_.L("namespace MyProgram").B(_ =>
 {
-    _.B("public class MyProgram", _ =>
+    _.L("public class MyProgram").B(_ =>
     {
-        _.B("public static void Main(string[] args)", _ =>
+        _.L("public static void Main(string[] args)").B(_ =>
         {
-            _.B("if (count > 6)", _ =>
+            _.L("if (count > 6)").B(_ =>
             {
                 _.L("Console.WriteLine(`Hello World!`);");
-                _.L("Console.WriteLine(`Hello World!`);");
+                _.L("Console.WriteLine(`Hello Again!`);");
             })
-            .B("else", _ =>
+            .L("else").B(_ =>
             {
                 _.L("Console.WriteLine(`Hello World!`);");
             });
@@ -81,52 +97,97 @@ Console.WriteLine(_.ToString());
 
 ---
 
-## ✨ Key Features
-
-### ✅ Fluent API — Code That Writes Code
-
-Write source generation logic that looks nearly identical to the output. No manual formatting, indentation, or brace management required.
-
-### 🧠 Token-Aware Formatting
-
-The builder system knows its context — it automatically places line breaks and indentation where needed according to widely accepted formatting rules in the C# community. Which makes your generated code clean and readable.
-
-### 🔄 Character Replacement System
-
-Write code with backticks instead of escaped double quotes:
+## 🐍 Python Example (IndentOnly)
 
 ```csharp
-_.L("Console.WriteLine(`Hello World!`);"); // <-- Notice Backtick (`)
-```
+var _ = new TextBuilder();
+_.Options.BlockStyle = BlockStyle.IndentOnly;
 
-It is preconfigured to replace Backtick (\`) with Double Quotes ("). You can customize & remove character replacements as below:
+_.L("def greet():").B(_ =>
+{
+    _.L("print(`Hello World!`)");
+    _.L("print(`Hello Again!`)");
+});
 
-```csharp
-_.Options.RegisterCharReplacement('`', '"');
-_.Options.RemoveCharReplacement('`');
+Console.WriteLine(_.ToString());
 ```
 
 ---
 
-## 🤔 Why Nest?
+## 🌐 HTML Example
 
-- ✅ Fluent, readable, and chainable API
-- ✅ No need to manage indentation or formatting manually
-- ✅ Output closely mirrors your generation code
-- ✅ No dependencies
-- ✅ Works with any .NET project
+```csharp
+var _ = new TextBuilder();
+_.Options.BlockStyle = BlockStyle.IndentOnly;
+_.Options.IndentSize = 2;
+
+_.L("<div>").B(_ =>
+{
+    _.L("<span>Hello World!</span>");
+    _.L("<span>Hello Again!</span>");
+}
+).L("</div>");
+
+Console.WriteLine(_.ToString());
+```
 
 ---
 
-## 📚 Getting Started
+## 📄 XML Example
 
-1. Install the package
-2. Use `CSharpBuilder` to define your structure
-3. Call `.ToString()` to get the generated output
+```csharp
+var _ = new TextBuilder();
+_.Options.BlockStyle = BlockStyle.IndentOnly;
+
+_.L("<config>").B(_ =>
+{
+    _.L("<entry key=`theme`>dark</entry>");
+    _.L("<entry key=`lang`>en</entry>");
+}
+).L("</config>");
+
+Console.WriteLine(_.ToString());
+```
+
+---
+
+## 📘 YAML Example
+
+```csharp
+var _ = new TextBuilder();
+_.Options.BlockStyle = BlockStyle.IndentOnly;
+
+_.L("Library:").B(_ =>
+{
+    _.L("name: `Nest`");
+    _.L("use: `Structured Text Generation`");
+
+    _.L("features:").B(_ =>
+    {
+        _.L("- Automated Indentation");
+        _.L("- Easy To Use");
+        _.L("- Zero Dependency");
+    });
+});
+
+Console.WriteLine(_.ToString());
+```
+
+---
+
+## 📚 Summary
+
+* Fluent and **chainable** API
+* Smart formatting — line breaks where needed, not where not
+* Custom indentation and block styles
+* Backtick-friendly string writing
+* Debuggable at every step
+* No dependencies, works anywhere .NET runs
 
 ---
 
 ## 🔗 Links
 
-- 📦 NuGet: [https://www.nuget.org/packages/Nest.CSharp/](https://www.nuget.org/packages/Nest.CSharp/)
-- 💻 GitHub: [https://github.com/h-shahzaib/Nest](https://github.com/h-shahzaib/Nest)
+* 📦 NuGet: [Nest.Text on NuGet](https://www.nuget.org/packages/Nest.Text/)
+* 💻 GitHub: [github.com/h-shahzaib/Nest](https://github.com/h-shahzaib/Nest)
+

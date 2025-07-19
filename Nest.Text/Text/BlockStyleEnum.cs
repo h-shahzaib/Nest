@@ -4,8 +4,9 @@ using System.Text;
 
 namespace Nest.Text
 {
-    public interface IToken : IBuilder
+    public enum BlockStyle
     {
-        public IOptions Options { get; }
+        IndentOnly,
+        Braces
     }
 }
